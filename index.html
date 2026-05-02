@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#3b82f6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mi Gym">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Mi Gym</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  ::-webkit-scrollbar { display: none; }
+  * { -webkit-user-select: none; user-select: none; }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+  .scale-98:active { transform: scale(0.98); }
+</style>
+</head>
+<body class="bg-white">
+<div id="app"></div>
+
+<script>
+// =================================================================
+// MI GYM - PWA Personal de entrenamiento, dieta y peso
+// =================================================================
+
+const STORAGE_KEY = "mi_gym_data_v1";
+
+// ============ TUS RUTINAS ============
+const DEFAULT_ROUTINES = {
+  "RELAX": {
+    exercises: [
+      { name: "Press de Hombros (Mancuerna)", muscle: "Hombros", equipment: "Mancuerna", sets: 3 },
+      { name: "Elevacion Laterales (Mancuerna)", muscle: "Hombros", equipment: "Mancuerna", sets: 3 },
+      { name: "Curl Martillo (Mancuerna)", muscle: "Bíceps", equipment: "Mancuerna", sets: 4 },
+      { name: "Extensión de Tríceps a un Brazo (Cable)", muscle: "Tríceps", equipment: "Cable", sets: 3 },
+      { name: "Curl de Bíceps Inclinado (Mancuerna)", muscle: "Bíceps", equipment: "Mancuerna", sets: 4 },
+      { name: "Extensión de Tríceps de un Brazo (Mancuerna)", muscle: "Tríceps", equipment: "Mancuerna", sets: 4 },
+    ],
+  },
+  "PUSH - Pecho / Hombro / Tríceps": {
+    exercises: [
+      { name: "Press de Banca (Mancuerna)", muscle: "Pecho", equipment: "Mancuerna", sets: 4 },
+      { name: "Press de Banca Inclinado (Mancuerna)", muscle: "Pecho", equipment: "Mancuerna", sets: 4 },
+      { name: "Press de Hombros (Mancuerna)", muscle: "Hombros", equipment: "Mancuerna", sets: 3 },
+      { name: "Aperturas (Mancuerna)", muscle: "Pecho", equipment: "Mancuerna", sets: 3 },
+      { name: "Elevación Frontal con Disco", muscle: "Hombros", equipment: "Disco", sets: 3 },
+      { name: "Tríceps con Polea", muscle: "Tríceps", equipment: "Cable", sets: 4 },
+    ],
+  },
+  "PULL - Espalda / Bíceps": {
+    exercises: [
+      { name: "Jalón al Pecho (Cable)", muscle: "Dorsales", equipment: "Cable", sets: 4 },
+      { name: "Remo con Mancuerna", muscle: "Dorsales", equipment: "Mancuerna", sets: 4 },
+      { name: "Remo Sentado con Cable", muscle: "Espalda Superior", equipment: "Cable", sets: 3 },
+      { name: "Curl de Bíceps (Mancuerna)", muscle: "Bíceps", equipment: "Mancuerna", sets: 4 },
+      { name: "Curl Martillo (Mancuerna)", muscle: "Bíceps", equipment: "Mancuerna", sets: 3 },
+    ],
+  },
+  "Legs - Completo": {
+    exercises: [
+      { name: "Sentadilla (Barra)", muscle: "Cuádriceps", equipment: "Barra", sets: 4 },
+      { name: "Press de Piernas", muscle: "Cuádriceps", equipment: "Máquina", sets: 4 },
+      { name: "Extensión de Pierna", muscle: "Cuádriceps", equipment: "Máquina", sets: 3 },
+      { name: "Peso Muerto Rumano (Barra)", muscle: "Isquiotibiales", equipment: "Barra", sets: 4 },
+      { name: "Curl de Piernas Acostado (Máquina)", muscle: "Isquiotibiales", equipment: "Máquina", sets: 3 },
+      { name: "Elevación de Gemelos", muscle: "Pantorrillas", equipment: "Máquina", sets: 4 },
+    ],
+  },
+  "Upper - Mixto": {
+    exercises: [
+      { name: "Press de Banca Inclinado (Mancuerna)", muscle: "Pecho", equipment: "Mancuerna", sets: 4 },
+      { name: "Remo Sentado con Cable", muscle: "Espalda Superior", equipment: "Cable", sets: 4 },
+      { name: "Jalón al Pecho (Cable)", muscle: "Dorsales", equipment: "Cable", sets: 3 },
+      { name: "Press de Hombros (Mancuerna)", muscle: "Hombros", equipment: "Mancuerna", sets: 3 },
+      { name: "Curl de Bíceps (Mancuerna)", muscle: "Bíceps", equipment: "Mancuerna", sets: 3 },
+      { name: "Tríceps con Polea", muscle: "Tríceps", equipment: "Cable", sets: 3 },
+    ],
+  },
+  "Lower - Posterior/Glúteo": {
+    exercises: [
+      { name: "Peso Muerto (Barra)", muscle: "Isquiotibiales", equipment: "Barra", sets: 4 },
+      { name: "Empuje de Caderas (Barra)", muscle: "Glúteos", equipment: "Barra", sets: 4 },
+      { name: "Zancada Curtsy (Mancuerna)", muscle: "Glúteos", equipment: "Mancuerna", sets: 3 },
+      { name: "Curl de Piernas Acostado (Máquina)", muscle: "Isquiotibiales", equipment: "Máquina", sets: 4 },
+      { name: "Elevación de Gemelos", muscle: "Pantorrillas", equipment: "Máquina", sets: 4 },
+    ],
+  },
+};
+
+// ============ BASE DE DATOS DE EJERCICIOS ============
+const EXERCISE_DB = [
+  { name: "Press de Banca (Mancuerna)", muscle: "Pecho", equipment: "Mancuerna" },
+  { name: "Press de Banca (Barra)", muscle: "Pecho", equipment: "Barra" },
+  { name: "Press de Banca Inclinado (Mancuerna)", muscle: "Pecho", equipment: "Mancuerna" },
+  { name: "Press de Banca Inclinado (Barra)", muscle: "Pecho", equipment: "Barra" },
+  { name: "Aperturas (Mancuerna)", muscle: "Pecho", equipment: "Mancuerna" },
+  { name: "Aperturas en Polea", muscle: "Pecho", equipment: "Cable" },
+  { name: "Fondos en Paralelas", muscle: "Pecho", equipment: "Ninguno" },
+  { name: "Press Declinado (Mancuerna)", muscle: "Pecho", equipment: "Mancuerna" },
+  { name: "Press de Hombros (Mancuerna)", muscle: "Hombros", equipment: "Mancuerna" },
+  { name: "Press Militar (Barra)", muscle: "Hombros", equipment: "Barra" },
+  { name: "Press Arnold", muscle: "Hombros", equipment: "Mancuerna" },
+  { name: "Elevacion Laterales (Mancuerna)", muscle: "Hombros", equipment: "Mancuerna" },
+  { name: "Elevación Frontal con Disco", muscle: "Hombros", equipment: "Disco" },
+  { name: "Pájaros (Mancuerna)", muscle: "Hombros", equipment: "Mancuerna" },
+  { name: "Face Pulls", muscle: "Hombros", equipment: "Cable" },
+  { name: "Jalón al Pecho (Cable)", muscle: "Dorsales", equipment: "Cable" },
+  { name: "Dominadas", muscle: "Dorsales", equipment: "Ninguno" },
+  { name: "Remo con Barra", muscle: "Dorsales", equipment: "Barra" },
+  { name: "Remo con Mancuerna", muscle: "Dorsales", equipment: "Mancuerna" },
+  { name: "Remo Sentado con Cable", muscle: "Espalda Superior", equipment: "Cable" },
+  { name: "Pullover en Polea", muscle: "Dorsales", equipment: "Cable" },
+  { name: "Encogimientos (Mancuerna)", muscle: "Trapecio", equipment: "Mancuerna" },
+  { name: "Curl de Bíceps (Mancuerna)", muscle: "Bíceps", equipment: "Mancuerna" },
+  { name: "Curl con Barra", muscle: "Bíceps", equipment: "Barra" },
+  { name: "Curl Martillo (Mancuerna)", muscle: "Bíceps", equipment: "Mancuerna" },
+  { name: "Curl de Bíceps Inclinado (Mancuerna)", muscle: "Bíceps", equipment: "Mancuerna" },
+  { name: "Curl Predicador", muscle: "Bíceps", equipment: "Máquina" },
+  { name: "Curl Concentrado", muscle: "Bíceps", equipment: "Mancuerna" },
+  { name: "Tríceps con Polea", muscle: "Tríceps", equipment: "Cable" },
+  { name: "Press Francés", muscle: "Tríceps", equipment: "Barra" },
+  { name: "Press Cerrado (Barra)", muscle: "Tríceps", equipment: "Barra" },
+  { name: "Extensión de Tríceps a un Brazo (Cable)", muscle: "Tríceps", equipment: "Cable" },
+  { name: "Extensión de Tríceps de un Brazo (Mancuerna)", muscle: "Tríceps", equipment: "Mancuerna" },
+  { name: "Patada de Tríceps", muscle: "Tríceps", equipment: "Mancuerna" },
+  { name: "Sentadilla (Barra)", muscle: "Cuádriceps", equipment: "Barra" },
+  { name: "Press de Piernas", muscle: "Cuádriceps", equipment: "Máquina" },
+  { name: "Extensión de Pierna", muscle: "Cuádriceps", equipment: "Máquina" },
+  { name: "Sentadilla Búlgara", muscle: "Cuádriceps", equipment: "Mancuerna" },
+  { name: "Peso Muerto (Barra)", muscle: "Isquiotibiales", equipment: "Barra" },
+  { name: "Peso Muerto Rumano (Barra)", muscle: "Isquiotibiales", equipment: "Barra" },
+  { name: "Curl de Piernas Acostado (Máquina)", muscle: "Isquiotibiales", equipment: "Máquina" },
+  { name: "Empuje de Caderas (Barra)", muscle: "Glúteos", equipment: "Barra" },
+  { name: "Zancada Curtsy (Mancuerna)", muscle: "Glúteos", equipment: "Mancuerna" },
+  { name: "Elevación de Gemelos", muscle: "Pantorrillas", equipment: "Máquina" },
+  { name: "Plancha", muscle: "Abdominales", equipment: "Ninguno" },
+  { name: "Crunch en Polea", muscle: "Abdominales", equipment: "Cable" },
+  { name: "Elevación de Piernas Colgado", muscle: "Abdominales", equipment: "Ninguno" },
+];
+
+const MUSCLES = ["Todos", "Pecho", "Hombros", "Dorsales", "Espalda Superior", "Trapecio", "Bíceps", "Tríceps", "Cuádriceps", "Isquiotibiales", "Glúteos", "Pantorrillas", "Abdominales"];
+const EQUIPMENT = ["Todo", "Ninguno", "Barra", "Mancuerna", "Cable", "Máquina", "Disco"];
+
+const MUSCLE_COLORS = {
+  "Pecho": "#ef4444", "Hombros": "#f97316", "Dorsales": "#3b82f6",
+  "Espalda Superior": "#3b82f6", "Trapecio": "#6366f1", "Bíceps": "#8b5cf6",
+  "Tríceps": "#ec4899", "Cuádriceps": "#10b981", "Isquiotibiales": "#14b8a6",
+  "Glúteos": "#06b6d4", "Pantorrillas": "#84cc16", "Abdominales": "#eab308",
+};
+
+// ============ DIETA ============
+const DIET = {
+  "lunes": { desayuno: "4 huevos revueltos + 80g avena con plátano + café", mediaManana: "2 huevos duros + pan integral + 30g maní", almuerzo: "200g pollo + arroz + lentejas + ensalada", merienda: "1 scoop whey + plátano + 2 cdas avena", cena: "200g jurel + papa + brócoli" },
+  "martes": { desayuno: "4 huevos revueltos + 80g avena con plátano + café", mediaManana: "1 lata atún claro + pan integral + 30g maní", almuerzo: "200g carne molida + arroz + frijoles + ensalada", merienda: "1 scoop whey + plátano + 2 cdas avena", cena: "Tortilla 4 huevos + verduras + arroz" },
+  "miércoles": { desayuno: "4 huevos revueltos + 80g avena con plátano + café", mediaManana: "Yogur natural + 30g maní", almuerzo: "200g pollo + papa + lentejas + ensalada", merienda: "1 scoop whey + plátano + 2 cdas avena", cena: "200g sardinas en lata + arroz + ensalada" },
+  "jueves": { desayuno: "4 huevos revueltos + 80g avena con plátano + café", mediaManana: "1 lata atún claro + pan integral + 30g maní", almuerzo: "200g caballa o pescado + arroz + frijoles", merienda: "1 scoop whey + plátano + 2 cdas avena", cena: "200g pollo + papa + verduras" },
+  "viernes": { desayuno: "4 huevos revueltos + 80g avena con plátano + café", mediaManana: "3 huevos duros + pan integral + 30g maní", almuerzo: "200g carne molida + arroz + lentejas + ensalada", merienda: "1 scoop whey + plátano + 2 cdas avena", cena: "200g jurel + arroz + ensalada" },
+  "sábado": { desayuno: "4 huevos revueltos + 80g avena con plátano + café", mediaManana: "Yogur + maní + plátano", almuerzo: "200g pollo + papa + frijoles + ensalada", merienda: "1 scoop whey + plátano + 2 cdas avena", cena: "200g caballa o sardinas + arroz + verduras" },
+  "domingo": { desayuno: "4 huevos revueltos + 80g avena con plátano + café", mediaManana: "2 huevos + pan + palta", almuerzo: "250g carne (asado) + arroz + ensalada", merienda: "1 scoop whey + plátano + 2 cdas avena", cena: "4 huevos revueltos + pan + queso" },
+};
+
+const SHOPPING_LIST = {
+  "Proteínas": ["Huevos (36 unidades)", "Pollo - pechuga o muslo (1 kg)", "Carne molida magra (800 g)", "Atún claro en lata (2 latas)", "Sardinas o caballa en lata (3 latas)", "Jurel fresco o congelado (500 g)", "Yogur natural sin azúcar (500 g)", "Proteína whey (1 kg)"],
+  "Carbohidratos": ["Avena (1 kg)", "Arroz (2 kg)", "Papa (2 kg)", "Pan integral (1 paquete)", "Lentejas (500 g)", "Frijoles/porotos (500 g)", "Plátanos (12-14 unidades)"],
+  "Grasas y otros": ["Maní natural sin sal (300 g)", "Aceite de oliva", "Leche (2 litros)"],
+  "Verduras": ["Brócoli", "Zapallito", "Zanahoria", "Tomate", "Lechuga", "Cebolla", "Ajo", "Pimiento"],
+};
+
+// ============ ESTADO Y PERSISTENCIA ============
+let state = {
+  routines: DEFAULT_ROUTINES,
+  workoutHistory: {},
+  shoppingChecked: {},
+  weightLog: [], // [{date, weight}]
+  currentTab: "entrenamiento",
+  currentView: "main", // main, routineDetail, activeWorkout, createRoutine, exercisePicker
+  routineDetail: null,
+  activeWorkout: null,
+  creatingRoutine: false,
+  pickerCallback: null,
+};
+
+function saveState() {
+  const data = {
+    routines: state.routines,
+    workoutHistory: state.workoutHistory,
+    shoppingChecked: state.shoppingChecked,
+    weightLog: state.weightLog,
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      state.routines = data.routines || DEFAULT_ROUTINES;
+      state.workoutHistory = data.workoutHistory || {};
+      state.shoppingChecked = data.shoppingChecked || {};
+      state.weightLog = data.weightLog || [];
+    }
+  } catch (e) { console.error("Error loading state", e); }
+}
+
+// ============ HELPERS ============
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+function exerciseIcon(muscle, size = 48) {
+  const color = MUSCLE_COLORS[muscle] || "#6b7280";
+  return `<div class="rounded-full flex items-center justify-center flex-shrink-0" style="width:${size}px;height:${size}px;background:linear-gradient(135deg, ${color}20, ${color}40);border:2px solid ${color}30;">
+    <svg width="${size*0.5}" height="${size*0.5}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/>
+    </svg>
+  </div>`;
+}
+
+function navIcon(name, active) {
+  const color = active ? "#3b82f6" : "#9ca3af";
+  const stroke = active ? 2.5 : 2;
+  const icons = {
+    home: `<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
+    dumbbell: `<path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/>`,
+    utensils: `<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>`,
+    cart: `<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>`,
+    user: `<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>`,
+  };
+  return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
+}
+
+// ============ RENDER ROOT ============
+function render() {
+  const app = $("app");
+  if (state.currentView === "activeWorkout") { app.innerHTML = renderActiveWorkout(); attachActiveWorkoutHandlers(); return; }
+  if (state.currentView === "routineDetail") { app.innerHTML = renderRoutineDetail(); attachRoutineDetailHandlers(); return; }
+  if (state.currentView === "createRoutine") { app.innerHTML = renderCreateRoutine(); attachCreateRoutineHandlers(); return; }
+  if (state.currentView === "exercisePicker") { app.innerHTML = renderExercisePicker(); attachExercisePickerHandlers(); return; }
+
+  app.innerHTML = `
+    <div class="min-h-screen bg-white pb-20">
+      ${state.currentTab === "inicio" ? renderInicio() : ""}
+      ${state.currentTab === "entrenamiento" ? renderEntrenamiento() : ""}
+      ${state.currentTab === "dieta" ? renderDieta() : ""}
+      ${state.currentTab === "compras" ? renderCompras() : ""}
+      ${state.currentTab === "perfil" ? renderPerfil() : ""}
+      ${renderBottomNav()}
+    </div>
+  `;
+  attachMainHandlers();
+  if (state.currentTab === "perfil") { setTimeout(renderWeightChart, 50); }
+  if (state.currentTab === "inicio") { setTimeout(renderVolumeChart, 50); }
+}
+
+function renderBottomNav() {
+  const tabs = [
+    { id: "inicio", label: "Inicio", icon: "home" },
+    { id: "entrenamiento", label: "Entreno", icon: "dumbbell" },
+    { id: "dieta", label: "Dieta", icon: "utensils" },
+    { id: "compras", label: "Compras", icon: "cart" },
+    { id: "perfil", label: "Perfil", icon: "user" },
+  ];
+  return `
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-bottom">
+      <div class="grid grid-cols-5">
+        ${tabs.map(t => `
+          <button data-action="tab" data-tab="${t.id}" class="flex flex-col items-center py-2 px-1">
+            ${navIcon(t.icon, state.currentTab === t.id)}
+            <span class="text-xs mt-0.5 font-semibold ${state.currentTab === t.id ? 'text-blue-500' : 'text-gray-400'}">${t.label}</span>
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// ============ TAB INICIO ============
+function renderInicio() {
+  const sessions = Object.entries(state.workoutHistory).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 5);
+  const totalWorkouts = Object.keys(state.workoutHistory).length;
+  const thisWeek = Object.keys(state.workoutHistory).filter(d => {
+    const date = new Date(d);
+    const now = new Date();
+    return (now - date) / 86400000 < 7;
+  }).length;
+
+  return `
+    <div class="px-4 pt-4 safe-top">
+      <h1 class="text-3xl font-black text-gray-900 mb-1">Hola 💪</h1>
+      <p class="text-gray-500 mb-6">Listo para entrenar hoy?</p>
+
+      <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="bg-blue-50 rounded-2xl p-4">
+          <div class="text-xs text-blue-600 font-bold uppercase tracking-wide">Esta semana</div>
+          <div class="text-3xl font-black text-blue-600 mt-1">${thisWeek}</div>
+          <div class="text-xs text-gray-500">entrenamientos</div>
+        </div>
+        <div class="bg-orange-50 rounded-2xl p-4">
+          <div class="text-xs text-orange-600 font-bold uppercase tracking-wide">Total</div>
+          <div class="text-3xl font-black text-orange-600 mt-1">${totalWorkouts}</div>
+          <div class="text-xs text-gray-500">sesiones</div>
+        </div>
+      </div>
+
+      ${sessions.length >= 2 ? `
+      <h2 class="text-lg font-black text-gray-900 mb-3">Volumen levantado</h2>
+      <div class="bg-white border border-gray-200 rounded-2xl p-4 mb-6" style="height:220px;">
+        <canvas id="volumeChart"></canvas>
+      </div>` : ""}
+
+      <h2 class="text-lg font-black text-gray-900 mb-3">Últimas sesiones</h2>
+      ${sessions.length === 0 ? `
+        <div class="bg-gray-50 rounded-2xl p-8 text-center text-gray-400">
+          <p class="text-sm">Aún no tienes entrenamientos.<br>¡Empieza tu primera rutina!</p>
+        </div>
+      ` : `
+        <div class="space-y-2">
+          ${sessions.map(([date, session]) => `
+            <div class="bg-white border border-gray-200 rounded-2xl p-3">
+              <div class="flex justify-between items-center">
+                <div>
+                  <div class="font-bold text-gray-900">${escapeHtml(session.name)}</div>
+                  <div class="text-xs text-gray-500">${new Date(date).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-sm font-black text-blue-500">${(session.totalVolume || 0).toFixed(0)} kg</div>
+                  <div class="text-xs text-gray-400">${session.exercises?.length || 0} ejercicios</div>
+                </div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function renderVolumeChart() {
+  const canvas = $("volumeChart");
+  if (!canvas) return;
+  const sessions = Object.entries(state.workoutHistory).sort((a, b) => a[0].localeCompare(b[0])).slice(-10);
+  const labels = sessions.map(([d]) => new Date(d).toLocaleDateString("es-ES", { day: "numeric", month: "short" }));
+  const data = sessions.map(([_, s]) => s.totalVolume || 0);
+
+  if (window._volumeChart) window._volumeChart.destroy();
+  window._volumeChart = new Chart(canvas, {
+    type: "line",
+    data: { labels, datasets: [{ data, borderColor: "#3b82f6", backgroundColor: "rgba(59,130,246,0.1)", borderWidth: 3, fill: true, tension: 0.3, pointBackgroundColor: "#3b82f6", pointRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } }
+  });
+}
+
+// ============ TAB ENTRENAMIENTO ============
+function renderEntrenamiento() {
+  return `
+    <div class="px-4 pt-4 safe-top">
+      <div class="flex items-center justify-between mb-5">
+        <h1 class="text-3xl font-black text-gray-900">Entrenamiento</h1>
+      </div>
+
+      <button data-action="empty-workout" class="w-full bg-gray-100 rounded-2xl p-4 mb-6 flex items-center gap-3 active:bg-gray-200 scale-98">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span class="font-bold text-gray-700">Empezar Entrenamiento Vacío</span>
+      </button>
+
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-black text-gray-900">Rutinas</h2>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-6">
+        <button data-action="new-routine" class="bg-gray-100 rounded-2xl p-3 flex items-center gap-2 active:bg-gray-200 scale-98">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+          <span class="font-bold text-gray-700 text-sm">Nueva Rutina</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 mb-3 text-gray-700">
+        <span class="font-bold">Mis rutinas (${Object.keys(state.routines).length})</span>
+      </div>
+
+      <div class="space-y-3">
+        ${Object.entries(state.routines).map(([name, routine]) => `
+          <div class="border border-gray-200 rounded-2xl p-4">
+            <div class="flex items-start justify-between mb-2">
+              <h3 class="font-black text-gray-900 text-lg flex-1 pr-2">${escapeHtml(name)}</h3>
+            </div>
+            <p class="text-gray-500 text-sm mb-3">
+              ${routine.exercises.slice(0, 3).map(e => escapeHtml(e.name)).join(", ")}${routine.exercises.length > 3 ? "..." : ""}
+            </p>
+            <button data-action="open-routine" data-name="${escapeHtml(name)}" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl scale-98 transition">
+              Empezar Rutina
+            </button>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// ============ DETALLE DE RUTINA ============
+function renderRoutineDetail() {
+  const name = state.routineDetail;
+  const routine = state.routines[name];
+  const sessions = Object.values(state.workoutHistory).filter(s => s.name === name);
+  const lastVolume = sessions.length > 0 ? sessions[sessions.length - 1].totalVolume : 0;
+
+  return `
+    <div class="min-h-screen bg-white pb-6 safe-top">
+      <div class="flex items-center justify-between p-4 border-b border-gray-100">
+        <button data-action="back-routine"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <h2 class="font-bold text-gray-900">Rutina</h2>
+        <button data-action="delete-routine" class="text-red-500 text-sm font-bold">Eliminar</button>
+      </div>
+
+      <div class="p-4">
+        <h1 class="text-3xl font-black text-gray-900 mb-1">${escapeHtml(name)}</h1>
+        <p class="text-gray-500 mb-5">Creada por ti</p>
+
+        <button data-action="start-routine" class="w-full bg-blue-500 text-white font-bold py-4 rounded-xl mb-6 scale-98">
+          Comenzar Rutina
+        </button>
+
+        ${sessions.length > 0 ? `
+          <div class="mb-6">
+            <div class="flex items-baseline gap-2 mb-1">
+              <span class="text-2xl font-black text-gray-900">${(lastVolume || 0).toFixed(0)} kg</span>
+              <span class="text-blue-500 text-sm font-bold">última sesión</span>
+            </div>
+            <p class="text-xs text-gray-500">${sessions.length} ${sessions.length === 1 ? "sesión completada" : "sesiones completadas"}</p>
+          </div>
+        ` : ""}
+
+        <h3 class="text-gray-500 font-bold mb-3 uppercase text-xs tracking-wider">Ejercicios</h3>
+        <div class="space-y-3">
+          ${routine.exercises.map((ex) => `
+            <div class="flex items-center gap-3">
+              ${exerciseIcon(ex.muscle, 48)}
+              <div class="flex-1 min-w-0">
+                <h4 class="font-bold text-blue-500">${escapeHtml(ex.name)}</h4>
+                <p class="text-xs text-gray-500">${ex.sets} series · ${escapeHtml(ex.muscle)}</p>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============ ENTRENAMIENTO ACTIVO ============
+function renderActiveWorkout() {
+  const w = state.activeWorkout;
+  const elapsed = Math.floor((Date.now() - w.startTime) / 1000);
+  const fmt = (s) => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  const completedSets = w.exercises.reduce((s, ex) => s + ex.setLogs.filter(set => set.completed).length, 0);
+  const totalSets = w.exercises.reduce((s, ex) => s + ex.setLogs.length, 0);
+
+  const getLastLog = (exName) => {
+    const sessions = Object.values(state.workoutHistory).filter(s => s.exercises?.some(e => e.name === exName));
+    if (sessions.length === 0) return null;
+    return sessions[sessions.length - 1].exercises.find(e => e.name === exName);
+  };
+
+  return `
+    <div class="min-h-screen bg-white pb-32 safe-top">
+      <div class="sticky top-0 bg-white border-b border-gray-100 z-10 safe-top">
+        <div class="flex items-center justify-between p-4">
+          <button data-action="cancel-workout" class="text-red-500 font-bold">Cancelar</button>
+          <div class="text-center">
+            <div class="font-mono font-bold text-blue-500" id="workoutTimer">${fmt(elapsed)}</div>
+            <div class="text-xs text-gray-500">${completedSets}/${totalSets} sets</div>
+          </div>
+          <button data-action="finish-workout" class="text-blue-500 font-bold">Terminar</button>
+        </div>
+      </div>
+
+      <div class="p-4">
+        <h1 class="text-2xl font-black text-gray-900 mb-4">${escapeHtml(w.name)}</h1>
+
+        <div class="space-y-6">
+          ${w.exercises.map((ex, exIdx) => {
+            const lastLog = getLastLog(ex.name);
+            return `
+              <div>
+                <div class="flex items-center gap-3 mb-3">
+                  ${exerciseIcon(ex.muscle, 44)}
+                  <div class="flex-1">
+                    <h3 class="font-bold text-blue-500">${escapeHtml(ex.name)}</h3>
+                    <p class="text-xs text-gray-500">${escapeHtml(ex.muscle)}</p>
+                  </div>
+                  <button data-action="remove-exercise" data-idx="${exIdx}" class="text-gray-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-12 gap-2 px-2 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <div class="col-span-2 text-center">Set</div>
+                  <div class="col-span-3 text-center">Anterior</div>
+                  <div class="col-span-3 text-center">Kg</div>
+                  <div class="col-span-2 text-center">Reps</div>
+                  <div class="col-span-2 text-center">✓</div>
+                </div>
+
+                <div class="space-y-1">
+                  ${ex.setLogs.map((set, setIdx) => {
+                    const lastSet = lastLog?.sets?.[setIdx];
+                    const lastDisplay = lastSet?.weight && lastSet?.reps ? `${lastSet.weight}×${lastSet.reps}` : "—";
+                    return `
+                      <div class="grid grid-cols-12 gap-2 items-center py-1.5 px-2 rounded-lg ${set.completed ? 'bg-green-50' : ''}">
+                        <div class="col-span-2 text-center font-bold text-gray-700">${setIdx + 1}</div>
+                        <div class="col-span-3 text-center text-xs text-gray-400">${lastDisplay}</div>
+                        <input type="number" inputmode="decimal" data-action="set-weight" data-ex="${exIdx}" data-set="${setIdx}" value="${set.weight}" placeholder="${lastSet?.weight || '—'}" class="col-span-3 bg-gray-100 rounded-lg py-1.5 text-center font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-300">
+                        <input type="number" inputmode="numeric" data-action="set-reps" data-ex="${exIdx}" data-set="${setIdx}" value="${set.reps}" placeholder="${lastSet?.reps || '—'}" class="col-span-2 bg-gray-100 rounded-lg py-1.5 text-center font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-300">
+                        <button data-action="toggle-set" data-ex="${exIdx}" data-set="${setIdx}" class="col-span-2 mx-auto w-8 h-8 rounded-lg flex items-center justify-center transition ${set.completed ? 'bg-green-500' : 'bg-gray-200'}">
+                          ${set.completed ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                        </button>
+                      </div>
+                    `;
+                  }).join("")}
+                </div>
+
+                <button data-action="add-set" data-idx="${exIdx}" class="w-full mt-2 py-2 text-sm font-bold text-blue-500 bg-blue-50 rounded-lg active:bg-blue-100">
+                  + Agregar Set
+                </button>
+              </div>
+            `;
+          }).join("")}
+        </div>
+
+        <button data-action="add-exercise" class="w-full mt-6 py-3 bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 scale-98">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Agregar Ejercicio
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// ============ SELECTOR DE EJERCICIOS ============
+function renderExercisePicker() {
+  const search = state.pickerSearch || "";
+  const muscleFilter = state.pickerMuscle || "Todos";
+  const equipFilter = state.pickerEquipment || "Todo";
+
+  const filtered = EXERCISE_DB.filter(ex => {
+    if (search && !ex.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (muscleFilter !== "Todos" && ex.muscle !== muscleFilter) return false;
+    if (equipFilter !== "Todo" && ex.equipment !== equipFilter) return false;
+    return true;
+  });
+
+  return `
+    <div class="min-h-screen bg-white safe-top">
+      <div class="sticky top-0 bg-white border-b border-gray-100 z-10">
+        <div class="flex items-center justify-between p-4">
+          <button data-action="cancel-picker" class="text-blue-500 font-bold">Cancelar</button>
+          <h2 class="font-bold text-gray-900">Agregar Ejercicio</h2>
+          <div class="w-16"></div>
+        </div>
+      </div>
+
+      <div class="p-4 space-y-3">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="exerciseSearch" placeholder="Buscar ejercicio" value="${escapeHtml(search)}" class="w-full bg-gray-100 rounded-xl pl-10 pr-4 py-3 outline-none font-medium">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <select data-action="filter-equipment" class="bg-gray-100 rounded-xl py-3 px-4 font-bold text-gray-700 text-sm outline-none">
+            ${EQUIPMENT.map(e => `<option ${e === equipFilter ? "selected" : ""}>${e === "Todo" ? "Todo Equipamiento" : e}</option>`).join("")}
+          </select>
+          <select data-action="filter-muscle" class="bg-gray-100 rounded-xl py-3 px-4 font-bold text-gray-700 text-sm outline-none">
+            ${MUSCLES.map(m => `<option ${m === muscleFilter ? "selected" : ""}>${m === "Todos" ? "Todos Músculos" : m}</option>`).join("")}
+          </select>
+        </div>
+
+        <div class="space-y-1 mt-4">
+          ${filtered.map((ex, i) => `
+            <button data-action="select-exercise" data-name="${escapeHtml(ex.name)}" class="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl active:bg-gray-100">
+              ${exerciseIcon(ex.muscle, 48)}
+              <div class="flex-1 text-left">
+                <h4 class="font-bold text-gray-900">${escapeHtml(ex.name)}</h4>
+                <p class="text-xs text-gray-500">${escapeHtml(ex.muscle)}</p>
+              </div>
+            </button>
+          `).join("")}
+          ${filtered.length === 0 ? '<p class="text-center text-gray-400 py-8">No se encontraron ejercicios</p>' : ""}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============ CREAR RUTINA ============
+function renderCreateRoutine() {
+  const newRoutine = state.newRoutine || { name: "", exercises: [] };
+  return `
+    <div class="min-h-screen bg-white pb-20 safe-top">
+      <div class="flex items-center justify-between p-4 border-b border-gray-100">
+        <button data-action="cancel-create" class="text-blue-500 font-bold">Cancelar</button>
+        <h2 class="font-bold text-gray-900">Crear Rutina</h2>
+        <button data-action="save-routine" class="font-bold ${newRoutine.name && newRoutine.exercises.length > 0 ? 'text-blue-500' : 'text-gray-300'}">Guardar</button>
+      </div>
+
+      <div class="p-4">
+        <input type="text" id="routineName" placeholder="Título de la Rutina" value="${escapeHtml(newRoutine.name)}" class="w-full text-2xl font-bold text-gray-900 outline-none border-b-2 border-gray-100 pb-2 mb-6 placeholder-gray-300">
+
+        ${newRoutine.exercises.length === 0 ? `
+          <div class="flex flex-col items-center justify-center py-20 text-gray-400">
+            <p class="text-center">Empieza agregando un ejercicio a tu rutina</p>
+          </div>
+        ` : `
+          <div class="space-y-3 mb-4">
+            ${newRoutine.exercises.map((ex, idx) => `
+              <div class="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                ${exerciseIcon(ex.muscle, 44)}
+                <div class="flex-1">
+                  <h4 class="font-bold text-gray-900 text-sm">${escapeHtml(ex.name)}</h4>
+                  <p class="text-xs text-gray-500">${ex.sets} series · ${escapeHtml(ex.muscle)}</p>
+                </div>
+                <button data-action="remove-new-ex" data-idx="${idx}" class="text-red-400">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            `).join("")}
+          </div>
+        `}
+
+        <button data-action="pick-for-new" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 scale-98">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Agregar ejercicio
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// ============ TAB DIETA ============
+function renderDieta() {
+  const today = new Date().toLocaleDateString("es-ES", { weekday: "long" });
+  const selected = state.selectedDay || today;
+  const meal = DIET[selected] || DIET["lunes"];
+  const days = Object.keys(DIET);
+  const labels = {
+    desayuno: { label: "Desayuno", time: "7-8 AM" },
+    mediaManana: { label: "Media mañana", time: "10-11 AM" },
+    almuerzo: { label: "Almuerzo", time: "13-14 PM" },
+    merienda: { label: "Merienda pre-entreno", time: "16-17 PM" },
+    cena: { label: "Cena", time: "20-21 PM" },
+  };
+
+  return `
+    <div class="px-4 pt-4 safe-top">
+      <h1 class="text-3xl font-black text-gray-900 mb-4">Dieta</h1>
+
+      <div class="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 mb-4">
+        ${days.map(d => `
+          <button data-action="select-day" data-day="${d}" class="flex-shrink-0 px-4 py-2 rounded-full font-bold text-sm capitalize ${selected === d ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}">
+            ${d.slice(0, 3)} ${d === today ? "•" : ""}
+          </button>
+        `).join("")}
+      </div>
+
+      <div class="space-y-3">
+        ${Object.entries(meal).map(([key, content]) => {
+          const info = labels[key];
+          return `
+            <div class="border border-gray-200 rounded-2xl p-4">
+              <div class="flex justify-between items-center mb-1">
+                <h3 class="font-black text-gray-900">${info.label}</h3>
+                <span class="text-xs text-gray-400 font-bold">${info.time}</span>
+              </div>
+              <p class="text-gray-600 text-sm">${escapeHtml(content)}</p>
+            </div>
+          `;
+        }).join("")}
+      </div>
+
+      <div class="mt-6 bg-blue-50 rounded-2xl p-4 mb-4">
+        <h3 class="font-black text-blue-900 mb-3">Objetivo diario</h3>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div><div class="text-2xl font-black text-blue-600">2900</div><div class="text-xs text-gray-500">kcal</div></div>
+          <div><div class="text-2xl font-black text-blue-600">190g</div><div class="text-xs text-gray-500">proteína</div></div>
+          <div><div class="text-2xl font-black text-blue-600">5</div><div class="text-xs text-gray-500">comidas</div></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============ TAB COMPRAS ============
+function renderCompras() {
+  const total = Object.values(SHOPPING_LIST).flat().length;
+  const done = Object.values(state.shoppingChecked).filter(Boolean).length;
+
+  return `
+    <div class="px-4 pt-4 safe-top">
+      <div class="flex items-center justify-between mb-4">
+        <h1 class="text-3xl font-black text-gray-900">Compras</h1>
+        <button data-action="reset-shopping" class="text-sm font-bold text-gray-500">Reiniciar</button>
+      </div>
+
+      <div class="bg-blue-50 rounded-2xl p-4 mb-4">
+        <div class="flex justify-between items-baseline mb-2">
+          <span class="text-blue-900 font-bold">Progreso</span>
+          <span class="text-2xl font-black text-blue-600">${done}/${total}</span>
+        </div>
+        <div class="h-2 bg-blue-200 rounded-full overflow-hidden">
+          <div class="h-full bg-blue-500 transition-all" style="width:${(done/total)*100}%"></div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        ${Object.entries(SHOPPING_LIST).map(([cat, items]) => `
+          <div>
+            <h3 class="font-black text-gray-900 mb-2">${cat}</h3>
+            <div class="space-y-1">
+              ${items.map(item => {
+                const checked = state.shoppingChecked[item];
+                return `
+                  <button data-action="toggle-shopping" data-item="${escapeHtml(item)}" class="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl text-left">
+                    <div class="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${checked ? 'bg-blue-500' : 'border-2 border-gray-300'}">
+                      ${checked ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                    </div>
+                    <span class="${checked ? 'text-gray-400 line-through' : 'text-gray-700'} font-medium">${escapeHtml(item)}</span>
+                  </button>
+                `;
+              }).join("")}
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// ============ TAB PERFIL ============
+function renderPerfil() {
+  const sessions = Object.values(state.workoutHistory);
+  const totalVolume = sessions.reduce((s, w) => s + (w.totalVolume || 0), 0);
+  const totalSets = sessions.reduce((s, w) => s + (w.completedSets || 0), 0);
+  const lastWeight = state.weightLog.length > 0 ? state.weightLog[state.weightLog.length - 1].weight : null;
+  const firstWeight = state.weightLog.length > 0 ? state.weightLog[0].weight : null;
+  const weightDiff = lastWeight && firstWeight ? lastWeight - firstWeight : 0;
+
+  return `
+    <div class="px-4 pt-4 safe-top">
+      <h1 class="text-3xl font-black text-gray-900 mb-6">Perfil</h1>
+
+      <div class="bg-blue-500 rounded-2xl p-5 text-white mb-6">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div>
+            <div class="font-black text-lg">Tu progreso</div>
+            <div class="text-sm opacity-90">26 años · 1.86m${lastWeight ? ` · ${lastWeight}kg` : ''}</div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="text-lg font-black text-gray-900 mb-3">Peso corporal</h2>
+      <div class="bg-white border border-gray-200 rounded-2xl p-4 mb-3">
+        <div class="flex gap-2 mb-3">
+          <input type="number" inputmode="decimal" id="weightInput" placeholder="Peso actual (kg)" step="0.1" class="flex-1 bg-gray-100 rounded-xl px-4 py-3 outline-none font-bold focus:ring-2 focus:ring-blue-300">
+          <button data-action="log-weight" class="bg-blue-500 text-white font-bold px-4 rounded-xl">Registrar</button>
+        </div>
+        ${state.weightLog.length >= 2 ? `<div style="height:200px;"><canvas id="weightChart"></canvas></div>` : `<p class="text-center text-gray-400 text-sm py-4">Registra tu peso para ver el gráfico</p>`}
+        ${state.weightLog.length > 0 ? `
+          <div class="grid grid-cols-3 gap-2 mt-3 text-center text-sm">
+            <div><div class="text-xs text-gray-500">Inicial</div><div class="font-black text-gray-900">${firstWeight} kg</div></div>
+            <div><div class="text-xs text-gray-500">Actual</div><div class="font-black text-blue-500">${lastWeight} kg</div></div>
+            <div><div class="text-xs text-gray-500">Cambio</div><div class="font-black ${weightDiff >= 0 ? 'text-orange-500' : 'text-green-500'}">${weightDiff >= 0 ? '+' : ''}${weightDiff.toFixed(1)} kg</div></div>
+          </div>
+        ` : ""}
+      </div>
+
+      ${state.weightLog.length > 0 ? `
+        <div class="mb-4">
+          <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Historial</h3>
+          <div class="space-y-1 max-h-48 overflow-y-auto">
+            ${state.weightLog.slice().reverse().map((w, i) => `
+              <div class="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+                <span class="text-sm text-gray-600">${new Date(w.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</span>
+                <div class="flex items-center gap-3">
+                  <span class="font-bold text-gray-900">${w.weight} kg</span>
+                  <button data-action="delete-weight" data-idx="${state.weightLog.length - 1 - i}" class="text-red-400 text-xs">×</button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+
+      <h2 class="text-lg font-black text-gray-900 mb-3 mt-6">Estadísticas</h2>
+      <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="bg-gray-50 rounded-2xl p-4">
+          <div class="text-xs text-gray-500 font-bold uppercase">Entrenamientos</div>
+          <div class="text-3xl font-black text-gray-900 mt-1">${sessions.length}</div>
+        </div>
+        <div class="bg-gray-50 rounded-2xl p-4">
+          <div class="text-xs text-gray-500 font-bold uppercase">Sets totales</div>
+          <div class="text-3xl font-black text-gray-900 mt-1">${totalSets}</div>
+        </div>
+        <div class="bg-gray-50 rounded-2xl p-4 col-span-2">
+          <div class="text-xs text-gray-500 font-bold uppercase">Volumen total levantado</div>
+          <div class="text-3xl font-black text-blue-500 mt-1">${totalVolume.toFixed(0)} <span class="text-base text-gray-400">kg</span></div>
+        </div>
+      </div>
+
+      <div class="bg-yellow-50 rounded-2xl p-4 mb-4">
+        <div class="font-black text-yellow-900 mb-1">💡 Tip</div>
+        <p class="text-sm text-yellow-800">Deja 1-2 reps en reserva en las primeras series. Solo lleva al fallo la última de cada ejercicio para mejor recuperación.</p>
+      </div>
+
+      <button data-action="export-data" class="w-full bg-gray-100 rounded-xl py-3 font-bold text-gray-700 mb-2">Exportar datos (backup)</button>
+      <button data-action="import-data" class="w-full bg-gray-100 rounded-xl py-3 font-bold text-gray-700 mb-2">Importar datos</button>
+    </div>
+  `;
+}
+
+function renderWeightChart() {
+  const canvas = $("weightChart");
+  if (!canvas || state.weightLog.length < 2) return;
+  const data = state.weightLog;
+  const labels = data.map(w => new Date(w.date).toLocaleDateString("es-ES", { day: "numeric", month: "short" }));
+  const values = data.map(w => w.weight);
+  if (window._weightChart) window._weightChart.destroy();
+  window._weightChart = new Chart(canvas, {
+    type: "line",
+    data: { labels, datasets: [{ data: values, borderColor: "#3b82f6", backgroundColor: "rgba(59,130,246,0.1)", borderWidth: 3, fill: true, tension: 0.3, pointBackgroundColor: "#3b82f6", pointRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } }
+  });
+}
+
+// ============ HANDLERS ============
+function attachMainHandlers() {
+  document.querySelectorAll("[data-action]").forEach(el => {
+    const action = el.dataset.action;
+    if (action === "tab") el.addEventListener("click", () => { state.currentTab = el.dataset.tab; render(); });
+    if (action === "empty-workout") el.addEventListener("click", () => startWorkout({ name: "Entrenamiento Vacío", exercises: [] }));
+    if (action === "new-routine") el.addEventListener("click", () => { state.newRoutine = { name: "", exercises: [] }; state.currentView = "createRoutine"; render(); });
+    if (action === "open-routine") el.addEventListener("click", () => { state.routineDetail = el.dataset.name; state.currentView = "routineDetail"; render(); });
+    if (action === "select-day") el.addEventListener("click", () => { state.selectedDay = el.dataset.day; render(); });
+    if (action === "toggle-shopping") el.addEventListener("click", () => { const item = el.dataset.item; state.shoppingChecked[item] = !state.shoppingChecked[item]; saveState(); render(); });
+    if (action === "reset-shopping") el.addEventListener("click", () => { state.shoppingChecked = {}; saveState(); render(); });
+    if (action === "log-weight") el.addEventListener("click", () => {
+      const v = parseFloat($("weightInput").value);
+      if (v > 0) {
+        state.weightLog.push({ date: new Date().toISOString(), weight: v });
+        saveState();
+        render();
+      }
+    });
+    if (action === "delete-weight") el.addEventListener("click", () => { state.weightLog.splice(parseInt(el.dataset.idx), 1); saveState(); render(); });
+    if (action === "export-data") el.addEventListener("click", exportData);
+    if (action === "import-data") el.addEventListener("click", importData);
+  });
+}
+
+function attachRoutineDetailHandlers() {
+  document.querySelectorAll("[data-action]").forEach(el => {
+    const a = el.dataset.action;
+    if (a === "back-routine") el.addEventListener("click", () => { state.currentView = "main"; state.routineDetail = null; render(); });
+    if (a === "start-routine") el.addEventListener("click", () => {
+      const r = state.routines[state.routineDetail];
+      startWorkout({ name: state.routineDetail, exercises: r.exercises });
+    });
+    if (a === "delete-routine") el.addEventListener("click", () => {
+      if (confirm("¿Eliminar esta rutina?")) {
+        delete state.routines[state.routineDetail];
+        saveState();
+        state.currentView = "main";
+        state.routineDetail = null;
+        render();
+      }
+    });
+  });
+}
+
+function startWorkout(workout) {
+  state.activeWorkout = {
+    name: workout.name,
+    startTime: Date.now(),
+    exercises: workout.exercises.map(ex => ({
+      ...ex,
+      setLogs: Array.from({ length: ex.sets || 3 }).map(() => ({ weight: "", reps: "", completed: false })),
+    })),
+  };
+  state.currentView = "activeWorkout";
+  render();
+  if (window._timerInterval) clearInterval(window._timerInterval);
+  window._timerInterval = setInterval(() => {
+    const t = $("workoutTimer");
+    if (t && state.activeWorkout) {
+      const elapsed = Math.floor((Date.now() - state.activeWorkout.startTime) / 1000);
+      t.textContent = `${String(Math.floor(elapsed/3600)).padStart(2,'0')}:${String(Math.floor((elapsed%3600)/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
+    }
+  }, 1000);
+}
+
+function attachActiveWorkoutHandlers() {
+  document.querySelectorAll("[data-action]").forEach(el => {
+    const a = el.dataset.action;
+    if (a === "cancel-workout") el.addEventListener("click", () => {
+      if (confirm("¿Cancelar este entrenamiento? Se perderá el progreso.")) {
+        if (window._timerInterval) clearInterval(window._timerInterval);
+        state.activeWorkout = null;
+        state.currentView = "main";
+        render();
+      }
+    });
+    if (a === "finish-workout") el.addEventListener("click", finishWorkout);
+    if (a === "set-weight") el.addEventListener("input", () => { state.activeWorkout.exercises[el.dataset.ex].setLogs[el.dataset.set].weight = el.value; });
+    if (a === "set-reps") el.addEventListener("input", () => { state.activeWorkout.exercises[el.dataset.ex].setLogs[el.dataset.set].reps = el.value; });
+    if (a === "toggle-set") el.addEventListener("click", () => {
+      const exIdx = el.dataset.ex, setIdx = el.dataset.set;
+      const set = state.activeWorkout.exercises[exIdx].setLogs[setIdx];
+      set.completed = !set.completed;
+      render();
+    });
+    if (a === "add-set") el.addEventListener("click", () => {
+      state.activeWorkout.exercises[el.dataset.idx].setLogs.push({ weight: "", reps: "", completed: false });
+      render();
+    });
+    if (a === "remove-exercise") el.addEventListener("click", () => {
+      state.activeWorkout.exercises.splice(parseInt(el.dataset.idx), 1);
+      render();
+    });
+    if (a === "add-exercise") el.addEventListener("click", () => {
+      state.pickerCallback = (ex) => {
+        state.activeWorkout.exercises.push({ ...ex, sets: 3, setLogs: [{ weight: "", reps: "", completed: false }, { weight: "", reps: "", completed: false }, { weight: "", reps: "", completed: false }] });
+        state.currentView = "activeWorkout";
+        render();
+      };
+      state.pickerSearch = ""; state.pickerMuscle = "Todos"; state.pickerEquipment = "Todo";
+      state.currentView = "exercisePicker";
+      render();
+    });
+  });
+}
+
+function finishWorkout() {
+  const w = state.activeWorkout;
+  const totalVolume = w.exercises.reduce((sum, ex) => sum + ex.setLogs.reduce((s, set) => s + (parseFloat(set.weight) || 0) * (parseInt(set.reps) || 0), 0), 0);
+  const completedSets = w.exercises.reduce((s, ex) => s + ex.setLogs.filter(set => set.completed).length, 0);
+  const dateKey = new Date().toISOString();
+  state.workoutHistory[dateKey] = {
+    name: w.name,
+    exercises: w.exercises.map(ex => ({ name: ex.name, muscle: ex.muscle, sets: ex.setLogs })),
+    totalVolume,
+    completedSets,
+    duration: Math.floor((Date.now() - w.startTime) / 1000),
+  };
+  if (window._timerInterval) clearInterval(window._timerInterval);
+  state.activeWorkout = null;
+  state.currentView = "main";
+  state.currentTab = "inicio";
+  saveState();
+  render();
+}
+
+function attachExercisePickerHandlers() {
+  document.querySelectorAll("[data-action]").forEach(el => {
+    const a = el.dataset.action;
+    if (a === "cancel-picker") el.addEventListener("click", () => {
+      // volver según contexto
+      if (state.activeWorkout) { state.currentView = "activeWorkout"; }
+      else if (state.newRoutine) { state.currentView = "createRoutine"; }
+      else { state.currentView = "main"; }
+      render();
+    });
+    if (a === "select-exercise") el.addEventListener("click", () => {
+      const ex = EXERCISE_DB.find(e => e.name === el.dataset.name);
+      if (state.pickerCallback) state.pickerCallback(ex);
+    });
+    if (a === "filter-muscle") el.addEventListener("change", () => { 
+      const v = el.value;
+      state.pickerMuscle = v === "Todos Músculos" ? "Todos" : v;
+      render(); 
+    });
+    if (a === "filter-equipment") el.addEventListener("change", () => { 
+      const v = el.value;
+      state.pickerEquipment = v === "Todo Equipamiento" ? "Todo" : v;
+      render();
+    });
+  });
+  const search = $("exerciseSearch");
+  if (search) {
+    search.addEventListener("input", (e) => {
+      state.pickerSearch = e.target.value;
+      // re-render solo la lista para no perder foco
+      render();
+      const s = $("exerciseSearch");
+      if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+    });
+  }
+}
+
+function attachCreateRoutineHandlers() {
+  document.querySelectorAll("[data-action]").forEach(el => {
+    const a = el.dataset.action;
+    if (a === "cancel-create") el.addEventListener("click", () => { state.newRoutine = null; state.currentView = "main"; render(); });
+    if (a === "save-routine") el.addEventListener("click", () => {
+      const nameInput = $("routineName");
+      const name = nameInput ? nameInput.value.trim() : state.newRoutine.name;
+      if (name && state.newRoutine.exercises.length > 0) {
+        state.routines[name] = { exercises: state.newRoutine.exercises };
+        saveState();
+        state.newRoutine = null;
+        state.currentView = "main";
+        render();
+      }
+    });
+    if (a === "pick-for-new") el.addEventListener("click", () => {
+      const nameInput = $("routineName");
+      if (nameInput) state.newRoutine.name = nameInput.value;
+      state.pickerCallback = (ex) => {
+        state.newRoutine.exercises.push({ ...ex, sets: 3 });
+        state.currentView = "createRoutine";
+        render();
+      };
+      state.pickerSearch = ""; state.pickerMuscle = "Todos"; state.pickerEquipment = "Todo";
+      state.currentView = "exercisePicker";
+      render();
+    });
+    if (a === "remove-new-ex") el.addEventListener("click", () => {
+      const nameInput = $("routineName");
+      if (nameInput) state.newRoutine.name = nameInput.value;
+      state.newRoutine.exercises.splice(parseInt(el.dataset.idx), 1);
+      render();
+    });
+  });
+  const nameInput = $("routineName");
+  if (nameInput) nameInput.addEventListener("input", (e) => { state.newRoutine.name = e.target.value; });
+}
+
+// ============ EXPORT / IMPORT ============
+function exportData() {
+  const data = {
+    routines: state.routines,
+    workoutHistory: state.workoutHistory,
+    weightLog: state.weightLog,
+    shoppingChecked: state.shoppingChecked,
+    exportDate: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `mi-gym-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (confirm("¿Reemplazar tus datos actuales con el backup?")) {
+          if (data.routines) state.routines = data.routines;
+          if (data.workoutHistory) state.workoutHistory = data.workoutHistory;
+          if (data.weightLog) state.weightLog = data.weightLog;
+          if (data.shoppingChecked) state.shoppingChecked = data.shoppingChecked;
+          saveState();
+          render();
+          alert("Datos importados correctamente");
+        }
+      } catch (err) { alert("Error al leer el archivo"); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ============ INIT ============
+loadState();
+render();
+
+// Service worker
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
